@@ -1,0 +1,429 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Tvent - Realtime Keyboard & Mouse Event Tracker</title>
+    <meta
+      name="description"
+      content="Tvent is a structured interface to log and inspect all JavaScript DOM keyboard and mouse interactions instantly. Track keycodes, mouse coordinates, and events in realtime."
+    />
+    <meta
+      name="keywords"
+      content="Tvent, event tracker, keyboard event listener, mouse event checker, javascript event log, keycode checker, mouse coordinate finder, keydown, mousemove, click listener"
+    />
+    <meta name="author" content="Jihad" />
+    <meta name="robots" content="index, follow" />
+
+    <script src="https://cdn.tailwindcss.com"></script>
+
+    <link
+      rel="stylesheet"
+      href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css"
+    />
+
+    <script>
+      tailwind.config = {
+        theme: {
+          extend: {
+            colors: {
+              primary: "#F54927",
+              surface: "#F8FAFC",
+            },
+            keyframes: {
+              fadeIn: {
+                "0%": { opacity: "0", transform: "translateY(5px)" },
+                "100%": { opacity: "1", transform: "translateY(0)" },
+              },
+            },
+            animation: {
+              fadeIn: "fadeIn 0.15s ease-out forwards",
+            },
+          },
+        },
+      };
+    </script>
+
+    <style>
+      /* Canvas Grid Background */
+      .canvas-grid {
+        background-size: 20px 20px;
+        background-image:
+          linear-gradient(
+            to right,
+            rgba(245, 73, 39, 0.04) 1px,
+            transparent 1px
+          ),
+          linear-gradient(
+            to bottom,
+            rgba(245, 73, 39, 0.04) 1px,
+            transparent 1px
+          );
+      }
+      /* Event Feed Custom Scrollbar */
+      .log-scrollbar::-webkit-scrollbar {
+        width: 6px;
+      }
+      .log-scrollbar::-webkit-scrollbar-track {
+        background: transparent;
+      }
+      .log-scrollbar::-webkit-scrollbar-thumb {
+        background: #cbd5e1;
+        border-radius: 10px;
+      }
+      .log-scrollbar::-webkit-scrollbar-thumb:hover {
+        background: #94a3b8;
+      }
+    </style>
+  </head>
+  <body
+    class="bg-surface text-slate-900 font-sans h-screen w-screen overflow-hidden flex flex-col p-4 md:p-6 select-none"
+  >
+    <div
+      class="w-full max-w-7xl mx-auto flex flex-col gap-5 h-full overflow-hidden"
+    >
+      <header
+        class="bg-white p-5 rounded-[2.5rem] shadow-sm border border-slate-200 flex justify-between items-center shrink-0"
+      >
+        <div class="flex items-center gap-4">
+          <div>
+            <h1 class="text-xl font-extrabold text-slate-800 tracking-tight">
+              Tvent
+            </h1>
+            <p class="text-slate-500 text-xs font-medium mt-0.5">
+              Realtime Keyboard & Mouse Event Log Engine
+            </p>
+          </div>
+        </div>
+        <div>
+          <button
+            id="clear-btn"
+            class="bg-slate-50 hover:bg-red-50 hover:text-primary text-slate-600 px-5 py-2.5 rounded-full text-xs font-bold transition-colors border border-slate-200 flex items-center gap-2 shadow-sm active:scale-95"
+          >
+            <i class="fa-solid fa-trash-can text-[11px]"></i>
+            Clear Logs
+          </button>
+        </div>
+      </header>
+
+      <main
+        class="grid grid-cols-1 lg:grid-cols-12 gap-5 flex-1 overflow-hidden"
+      >
+        <section
+          class="lg:col-span-7 flex flex-col gap-5 overflow-hidden h-full"
+        >
+          <div
+            id="interaction-pad"
+            class="bg-white border-2 border-dashed border-slate-200 hover:border-primary/40 rounded-[2.5rem] flex-1 flex flex-col items-center justify-center cursor-crosshair transition-colors relative overflow-hidden group canvas-grid shadow-sm"
+          >
+            <div
+              class="text-center pointer-events-none z-10 p-6 flex flex-col items-center"
+            >
+              <div
+                class="h-14 w-14 rounded-full bg-slate-50 border border-slate-200 flex items-center justify-center mb-4 group-hover:scale-110 group-hover:bg-orange-50 group-hover:border-primary/30 transition-all"
+              >
+                <i
+                  class="fa-solid fa-arrow-pointer text-slate-400 group-hover:text-primary text-lg transition-colors"
+                ></i>
+              </div>
+              <h2 class="text-slate-700 font-extrabold text-lg tracking-tight">
+                Interactive Canvas
+              </h2>
+              <p class="text-slate-500 text-xs max-w-xs mt-1.5 leading-relaxed">
+                Perform any mouse actions inside this arena or press any key on
+                your keyboard.
+              </p>
+            </div>
+
+            <div
+              class="absolute bottom-5 left-5 right-5 flex justify-between items-center pointer-events-none bg-white/90 backdrop-blur-md px-5 py-3 rounded-2xl border border-slate-200 shadow-sm"
+            >
+              <span
+                class="text-[10px] font-bold tracking-wider text-slate-500 uppercase flex items-center gap-2"
+              >
+                <i class="fa-solid fa-crosshairs text-primary"></i> Live
+                Coordinates
+              </span>
+              <div
+                class="flex gap-4 text-xs font-mono font-bold text-slate-700"
+              >
+                <span>X: <span id="live-x" class="text-primary">0</span></span>
+                <span>Y: <span id="live-y" class="text-primary">0</span></span>
+              </div>
+            </div>
+          </div>
+
+          <div class="grid grid-cols-2 gap-5 shrink-0">
+            <div
+              class="bg-white p-5 rounded-[2rem] border border-slate-200 shadow-sm flex items-center gap-4"
+            >
+              <div
+                class="h-10 w-10 rounded-2xl bg-orange-50 text-primary flex items-center justify-center text-sm border border-orange-100"
+              >
+                <i class="fa-solid fa-keyboard"></i>
+              </div>
+              <div>
+                <span
+                  class="text-[10px] font-bold text-slate-400 block uppercase tracking-wider mb-0.5"
+                  >Last Key Pressed</span
+                >
+                <span
+                  id="live-key"
+                  class="text-sm font-black text-slate-700 font-mono"
+                  >None</span
+                >
+              </div>
+            </div>
+            <div
+              class="bg-white p-5 rounded-[2rem] border border-slate-200 shadow-sm flex items-center gap-4"
+            >
+              <div
+                class="h-10 w-10 rounded-2xl bg-slate-50 text-slate-600 flex items-center justify-center text-sm border border-slate-200"
+              >
+                <i class="fa-solid fa-computer-mouse"></i>
+              </div>
+              <div>
+                <span
+                  class="text-[10px] font-bold text-slate-400 block uppercase tracking-wider mb-0.5"
+                  >Last Mouse Action</span
+                >
+                <span
+                  id="live-mouse-action"
+                  class="text-sm font-black text-slate-700 capitalize"
+                  >None</span
+                >
+              </div>
+            </div>
+          </div>
+        </section>
+
+        <section
+          class="lg:col-span-5 bg-white rounded-[2.5rem] shadow-sm border border-slate-200 p-6 flex flex-col h-full overflow-hidden"
+        >
+          <div class="flex justify-between items-center mb-5 shrink-0 px-2">
+            <div>
+              <h3
+                class="text-base font-extrabold text-slate-800 tracking-tight"
+              >
+                Live Event Feed
+              </h3>
+              <p class="text-slate-500 text-[11px] font-medium mt-0.5">
+                Realtime structured action logs
+              </p>
+            </div>
+            <span
+              id="log-count"
+              class="bg-slate-100 text-slate-600 text-[11px] font-bold px-3 py-1.5 rounded-xl border border-slate-200"
+              >0 Events</span
+            >
+          </div>
+
+          <ul
+            id="event-log"
+            class="flex flex-col gap-3 overflow-y-auto pr-2 flex-grow log-scrollbar"
+          >
+            <div
+              id="empty-state"
+              class="flex flex-col items-center justify-center text-center my-auto py-10 opacity-70"
+            >
+              <i class="fa-solid fa-bolt text-3xl text-slate-300 mb-3"></i>
+              <p class="text-slate-500 text-xs font-medium max-w-[220px]">
+                Perform any action to stream active events here.
+              </p>
+            </div>
+          </ul>
+        </section>
+      </main>
+    </div>
+
+    <script>
+      const logContainer = document.getElementById("event-log");
+      const interactionPad = document.getElementById("interaction-pad");
+      const clearBtn = document.getElementById("clear-btn");
+      const emptyState = document.getElementById("empty-state");
+      const logCountBadge = document.getElementById("log-count");
+
+      const liveX = document.getElementById("live-x");
+      const liveY = document.getElementById("live-y");
+      const liveKey = document.getElementById("live-key");
+      const liveMouseAction = document.getElementById("live-mouse-action");
+
+      let totalLogs = 0;
+
+      // Event Type Configurations
+      const eventConfigs = {
+        keydown: {
+          title: "Key Down",
+          bg: "bg-orange-50 border-orange-100",
+          badge: "bg-primary text-white",
+          icon: "fa-arrow-down",
+        },
+        keyup: {
+          title: "Key Up",
+          bg: "bg-amber-50 border-amber-100",
+          badge: "bg-amber-500 text-white",
+          icon: "fa-arrow-up",
+        },
+        click: {
+          title: "Left Click",
+          bg: "bg-emerald-50 border-emerald-100",
+          badge: "bg-emerald-600 text-white",
+          icon: "fa-hand-pointer",
+        },
+        dblclick: {
+          title: "Double Click",
+          bg: "bg-teal-50 border-teal-100",
+          badge: "bg-teal-600 text-white",
+          icon: "fa-bolt",
+        },
+        contextmenu: {
+          title: "Right Click",
+          bg: "bg-rose-50 border-rose-100",
+          badge: "bg-rose-600 text-white",
+          icon: "fa-bars",
+        },
+        mousedown: {
+          title: "Mouse Press",
+          bg: "bg-sky-50 border-sky-100",
+          badge: "bg-sky-600 text-white",
+          icon: "fa-arrow-down-long",
+        },
+        mouseup: {
+          title: "Mouse Release",
+          bg: "bg-slate-50 border-slate-200",
+          badge: "bg-slate-600 text-white",
+          icon: "fa-arrow-up-long",
+        },
+        mouseenter: {
+          title: "Pad Entered",
+          bg: "bg-purple-50 border-purple-100",
+          badge: "bg-purple-500 text-white",
+          icon: "fa-right-to-bracket",
+        },
+        mouseleave: {
+          title: "Pad Left",
+          bg: "bg-stone-50 border-stone-200",
+          badge: "bg-stone-500 text-white",
+          icon: "fa-right-from-bracket",
+        },
+        mousemove: {
+          title: "Pointer Move",
+          bg: "bg-slate-50/50 border-slate-100",
+          badge: "bg-slate-400 text-white",
+          icon: "fa-location-arrow",
+        },
+        wheel: {
+          title: "Scroll Wheel",
+          bg: "bg-cyan-50 border-cyan-100",
+          badge: "bg-cyan-600 text-white",
+          icon: "fa-up-down",
+        },
+      };
+
+      function updateBadgeCount() {
+        logCountBadge.innerText = `${totalLogs} Event${totalLogs !== 1 ? "s" : ""}`;
+      }
+
+      function logEvent(e, type) {
+        // Prevent default right-click menu inside the pad
+        if (e.type === "contextmenu") e.preventDefault();
+
+        // Handle Mouse Move Live Coordinates (Every Pixel)
+        if (e.type === "mousemove") {
+          const rect = interactionPad.getBoundingClientRect();
+          const x = Math.round(e.clientX - rect.left);
+          const y = Math.round(e.clientY - rect.top);
+
+          liveX.innerText = x;
+          liveY.innerText = y;
+          liveMouseAction.innerText = "Moving";
+        }
+
+        // Remove Empty State Placeholder
+        if (emptyState) emptyState.style.display = "none";
+
+        // Update Status Cards
+        if (type === "Keyboard") {
+          liveKey.innerText = `${e.key === " " ? "Space" : e.key} [${e.code}]`;
+        } else if (type === "Mouse" && e.type !== "mousemove") {
+          liveMouseAction.innerText = eventConfigs[e.type]?.title || e.type;
+        }
+
+        const config = eventConfigs[e.type] || {
+          title: e.type,
+          bg: "bg-slate-50 border-slate-200",
+          badge: "bg-slate-500 text-white",
+          icon: "fa-circle",
+        };
+
+        const li = document.createElement("li");
+        li.className = `flex flex-col sm:flex-row sm:items-center justify-between p-3.5 border rounded-2xl transition-all animate-fadeIn shrink-0 ${config.bg}`;
+
+        let contextMeta = "";
+        if (type === "Keyboard") {
+          contextMeta = `
+                    <div class="flex items-center gap-1.5 mt-2 sm:mt-0 flex-wrap">
+                        <span class="text-[11px] font-mono bg-white px-2 py-1 rounded-md border border-slate-200 text-slate-600 font-semibold shadow-sm">Code: ${e.code}</span>
+                        ${e.shiftKey ? '<span class="text-[10px] bg-purple-100 text-purple-700 px-2 py-1 rounded border border-purple-200 font-bold">SHIFT</span>' : ""}
+                        ${e.ctrlKey ? '<span class="text-[10px] bg-sky-100 text-sky-700 px-2 py-1 rounded border border-sky-200 font-bold">CTRL</span>' : ""}
+                        ${e.altKey ? '<span class="text-[10px] bg-amber-100 text-amber-700 px-2 py-1 rounded border border-amber-200 font-bold">ALT</span>' : ""}
+                    </div>
+                `;
+        } else {
+          contextMeta = `
+                    <div class="flex items-center gap-2 mt-2 sm:mt-0 font-mono text-[11px] text-slate-500">
+                        <span class="bg-white px-2 py-1 rounded-md border border-slate-200 font-bold shadow-sm">X: ${Math.round(e.clientX)}</span>
+                        <span class="bg-white px-2 py-1 rounded-md border border-slate-200 font-bold shadow-sm">Y: ${Math.round(e.clientY)}</span>
+                    </div>
+                `;
+        }
+
+        li.innerHTML = `
+                <div class="flex items-center gap-3">
+                    <div class="h-8 w-8 rounded-xl ${config.badge} flex items-center justify-center text-[13px] shrink-0 shadow-sm">
+                        <i class="fa-solid ${config.icon}"></i>
+                    </div>
+                    <div>
+                        <div class="flex items-center gap-2.5">
+                            <span class="text-xs font-black tracking-wide uppercase text-slate-700">${config.title}</span>
+                            ${type === "Keyboard" ? `<span class="text-xs font-bold text-primary font-mono bg-white px-2 py-0.5 rounded-md border border-slate-200 shadow-sm">${e.key === " " ? "Space" : e.key}</span>` : ""}
+                        </div>
+                    </div>
+                </div>
+                ${contextMeta}
+            `;
+
+        logContainer.prepend(li);
+        totalLogs++;
+        updateBadgeCount();
+
+        // Dom limit (removes old logs so the page doesn't lag from heavy mousemove tracking)
+        if (logContainer.children.length > 100) {
+          logContainer.lastElementChild.remove();
+        }
+      }
+
+      // Attach Listeners
+      Object.keys(eventConfigs).forEach((evt) => {
+        if (evt === "keydown" || evt === "keyup") {
+          window.addEventListener(evt, (e) => logEvent(e, "Keyboard"));
+        } else {
+          interactionPad.addEventListener(evt, (e) => logEvent(e, "Mouse"));
+        }
+      });
+
+      // Clear Action
+      clearBtn.addEventListener("click", () => {
+        logContainer.innerHTML = "";
+        logContainer.appendChild(emptyState);
+        emptyState.style.display = "flex";
+        totalLogs = 0;
+        updateBadgeCount();
+        liveKey.innerText = "None";
+        liveMouseAction.innerText = "None";
+        liveX.innerText = "0";
+        liveY.innerText = "0";
+      });
+    </script>
+  </body>
+</html>
